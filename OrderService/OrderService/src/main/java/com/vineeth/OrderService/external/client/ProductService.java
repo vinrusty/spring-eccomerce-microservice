@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 @CircuitBreaker(name = "external", fallbackMethod = "fallback")
-@FeignClient(name = "PRODUCT-SERVICE/product")
+@FeignClient(name = "product", url = "${microservices.product}")
 public interface ProductService {
 
     @PutMapping("/reduce-quantity/{id}")
@@ -18,7 +18,7 @@ public interface ProductService {
             @RequestParam long quantity
     );
 
-    default void fallback(Exception e){
+    default ResponseEntity<Void> fallback(Exception e){
         throw new CustomException("Product Services not available",
                 "UNAVAILABLE",
                 500);

@@ -1,0 +1,93 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pgsql-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  hostPath:
+    path: "/run/desktop/mnt/host/c/temp/testfiles"
+    type: DirectoryOrCreate
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgsql-pvc
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pgsql
+spec:
+  selector:
+    matchLabels:
+      app: pgsql
+  serviceName: pgsql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pgsql
+    spec:
+      containers:
+      - name: pgsql
+        image: postgres:latest
+        ports:
+        - containerPort: 5432
+          name: pgsql
+        env:
+          - name: POSTGRES_PASSWORD
+            value: test
+          - name: POSTGRES_USER
+            value: postgres
+        volumeMounts:
+        - name: pgsql-initdb
+          mountPath: /docker-entrypoint-initdb.d
+        - name: pgsql-persistent-storage
+          mountPath: /var/lib/postgresql
+      volumes:
+        - name: pgsql-persistent-storage
+          persistentVolumeClaim:
+            claimName: pgsql-pvc
+        - name: pgsql-initdb
+          configMap:
+            name: pgsql-initdb-cm
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgsql-initdb-cm
+data:
+  init.sql: |
+    SELECT 'CREATE DATABASE orderdb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'orderdb')\gexec
+    SELECT 'CREATE DATABASE paymentdb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'paymentdb')\gexec
+    SELECT 'CREATE DATABASE productdb' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'productdb')\gexec
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgsql
+spec:
+  clusterIP: None
+  selector:
+    app: pgsql
+  ports:
+  - port: 5432

@@ -12,6 +12,7 @@ import com.vineeth.OrderService.model.ProductResponse;
 import com.vineeth.OrderService.repository.OrderRepository;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -31,6 +32,10 @@ public class OrderServiceImpl implements OrderService{
 
     @Autowired
     private RestTemplate restTemplate;
+    @Value("${microservices.product}")
+    private String productServiceUrl;
+    @Value("${microservices.payment}")
+    private String paymentServiceUrl;
 
     @Override
     public long placeOrder(OrderRequest orderRequest) {
@@ -78,12 +83,12 @@ public class OrderServiceImpl implements OrderService{
                         "NOT_FOUND", 404));
         log.info("Invoking Product service to fetch the product details for Order ID {}", order.getId());
         ProductResponse productResponse = restTemplate.getForObject(
-                "http://PRODUCT-SERVICE/product/"+order.getProductId(),
+                productServiceUrl+order.getProductId(),
                 ProductResponse.class
         );
         log.info("Getting payment information from the payment service");
         PaymentResponse paymentResponse = restTemplate.getForObject(
-                "http://PAYMENT-SERVICE/payment/order/"+order.getId(),
+                paymentServiceUrl+"order/"+order.getId(),
                 PaymentResponse.class
         );
         OrderResponse.ProductDetails productDetails = OrderResponse.ProductDetails.builder()
